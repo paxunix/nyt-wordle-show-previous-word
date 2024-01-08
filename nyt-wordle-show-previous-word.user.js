@@ -3,6 +3,8 @@
 // @description Shows yesterday's word on the current wordle puzzle so it's easier to play ultra-hard mode.
 // @match       https://www.nytimes.com/games/wordle/*
 // @version     1
+// @downloadURL https://raw.githubusercontent.com/paxunix/nyt-wordle-show-previous-word/main/nyt-wordle-show-previous-word.user.js
+// @updateURL   https://raw.githubusercontent.com/paxunix/nyt-wordle-show-previous-word/main/nyt-wordle-show-previous-word.user.js
 // @author      paxunix@gmail.com
 // @grant       GM.xmlHttpRequest
 // @grant       GM.setValue
