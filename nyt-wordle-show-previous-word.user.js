@@ -2,7 +2,7 @@
 // @name        Wordle - show yesterday's word
 // @description Shows yesterday's word on the current wordle puzzle so it's easier to play ultra-hard mode.
 // @match       https://www.nytimes.com/games/wordle/*
-// @version     1
+// @version     2
 // @downloadURL https://raw.githubusercontent.com/paxunix/nyt-wordle-show-previous-word/main/nyt-wordle-show-previous-word.user.js
 // @updateURL   https://raw.githubusercontent.com/paxunix/nyt-wordle-show-previous-word/main/nyt-wordle-show-previous-word.user.js
 // @author      paxunix@gmail.com
@@ -50,19 +50,31 @@ function fetcher(opts)
 }
 
 
+function localISODate(date)
+{
+    return [date.getFullYear(), new String(date.getMonth() + 1).padStart(2, "0"), new String(date.getDate()).padStart(2, "0")].join("/");
+}
+
+
 async function getPreviousWordleWords()
 {
     "use strict";
 
-    // Read from cached words, cache TTL is 15 hours
+    let now = new Date();
+
+    // Read from cached words.  If we have yesterday's word, use it,
+    // otherwise update cache.
     let data = (await GM.getValue("previousWordleWords")) ?? null;
     if (data !== null)
     {
-       if (Date.now() <= data.retrievedTime + (15 * 60 * 60 * 1000))
-           return data.words;
+        let yesterday = localISODate(new Date((new Date()).getTime() - 86400000));
+
+        if (data.words[0].date === yesterday)
+            return data.words;
     }
 
-    let doc = (await fetcher({url: "https://www.fiveforks.com/wordle/", responseType: "document" })).response;
+    let previousWordsUrl = "https://www.fiveforks.com/wordle/";
+    let doc = (await fetcher({url: previousWordsUrl, responseType: "document" })).response;
 
     let $chronoWordList = Array.from(doc.querySelectorAll("div > strong")).filter(el => el.textContent.includes("Chronological"))[0]?.closest("div") ?? null;
 
@@ -82,7 +94,6 @@ async function getPreviousWordleWords()
     words.sort((a, b) => b.date.localeCompare(a.date, "en-US"));
 
     GM.setValue("previousWordleWords", {
-        retrievedTime: Date.now(),
         words: words
     });
 
@@ -112,11 +123,12 @@ table#nyt-wordle-show-previous-word td, table#nyt-wordle-show-previous-word th {
 
 `);
 
+    let yesterday = localISODate(new Date((new Date()).getTime() - 86400000));
     let yesterdayWordData = (await getPreviousWordleWords())[0];
     let yesterdayWord = yesterdayWordData?.word ?? null;
 
-    if (yesterdayWord === null)
-        throw "Yesterday's word not found";
+    if (yesterdayWord === null || yesterdayWordData.date !== yesterday)
+        yesterdayWord = "<unknown>";
 
     let $tbl = document.createElement("table");
     $tbl.id = "nyt-wordle-show-previous-word";
