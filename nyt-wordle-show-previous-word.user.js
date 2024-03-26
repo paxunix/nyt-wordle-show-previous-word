@@ -2,7 +2,7 @@
 // @name        Wordle - show yesterday's word
 // @description Shows yesterday's word on the current wordle puzzle so it's easier to play ultra-hard mode.
 // @match       https://www.nytimes.com/games/wordle/*
-// @version     2
+// @version     3
 // @downloadURL https://raw.githubusercontent.com/paxunix/nyt-wordle-show-previous-word/main/nyt-wordle-show-previous-word.user.js
 // @updateURL   https://raw.githubusercontent.com/paxunix/nyt-wordle-show-previous-word/main/nyt-wordle-show-previous-word.user.js
 // @author      paxunix@gmail.com
@@ -15,6 +15,7 @@
 /* jshint esversion:11 */
 /* globals GM */
 
+const previousWordsUrl = "https://wordfinder.yourdictionary.com/wordle/answers/";
 
 function fetcher(opts)
 {
@@ -52,7 +53,7 @@ function fetcher(opts)
 
 function localISODate(date)
 {
-    return [date.getFullYear(), new String(date.getMonth() + 1).padStart(2, "0"), new String(date.getDate()).padStart(2, "0")].join("/");
+    return [date.getFullYear(), new String(date.getMonth() + 1).padStart(2, "0"), new String(date.getDate()).padStart(2, "0")].join("-");
 }
 
 
@@ -73,20 +74,33 @@ async function getPreviousWordleWords()
             return data.words;
     }
 
-    let previousWordsUrl = "https://www.fiveforks.com/wordle/";
     let doc = (await fetcher({url: previousWordsUrl, responseType: "document" })).response;
+    let rows = Array.from(doc.querySelectorAll('tr'))
+        .filter(tr => {
+            let el = tr.querySelector('td:nth-child(3)');
+            return el ? el.innerText.search(/^\s*\w+\s*$/) !== -1 : false;
+        });
 
-    let $chronoWordList = Array.from(doc.querySelectorAll("div > strong")).filter(el => el.textContent.includes("Chronological"))[0]?.closest("div") ?? null;
+    if (rows.length === 0)
+        throw "Failed to find previous word list.  Selector needs updating?";
 
-    if ($chronoWordList === null)
-        throw "Failed to find previous word list";
+    let words = rows.map(tr => {
+        let h2 = tr.closest("table")?.previousElementSibling;
+        if (h2.nodeName !== "H2")
+            throw new Error("Can't find expected h2");
 
-    let words = $chronoWordList.textContent.matchAll(/([a-z]+)\s+#(\d+)\s+(\d\d)\/(\d\d)\/(\d\d)/gi);
-    words = [...words].map(r => {
+        let year = h2.innerText.match(/(\d+)/)[0];
+
+        let [date, number, word] = Array.from(tr.querySelectorAll("td")).map(td => td.textContent?.trim() ?? "");
+
+        date = (new Date(`${date} ${year}`)).toISOString().split("T")[0];
+        number = parseInt(number, 10);
+        word = word.toUpperCase();
+
         return {
-            word: r[1],
-            number: r[2],
-            date: `20${r[5]}/${r[3]}/${r[4]}`,
+            date,
+            number,
+            word,
         }
     });
 
@@ -94,6 +108,7 @@ async function getPreviousWordleWords()
     words.sort((a, b) => b.date.localeCompare(a.date, "en-US"));
 
     GM.setValue("previousWordleWords", {
+        retrievedTime: Date.now(),
         words: words
     });
 
@@ -106,8 +121,8 @@ async function main()
     GM.addStyle(`
 table#nyt-wordle-show-previous-word {
         position: absolute;
-        left: 20vw;
-        top: 20vh;
+        left: 15vw;
+        top: 15vh;
         z-index: 1000;
         border-color: grey;
         border-width: 2px;
@@ -124,17 +139,22 @@ table#nyt-wordle-show-previous-word td, table#nyt-wordle-show-previous-word th {
 `);
 
     let yesterday = localISODate(new Date((new Date()).getTime() - 86400000));
-    let yesterdayWordData = (await getPreviousWordleWords())[0];
-    let yesterdayWord = yesterdayWordData?.word ?? null;
+    let allWords = await getPreviousWordleWords();
+    let yesterdayWordData = allWords.filter(wd => wd.date === yesterday)[0] ?? null;
+    let yesterdayWord = "<unknown>";
 
-    if (yesterdayWord === null || yesterdayWordData.date !== yesterday)
-        yesterdayWord = "<unknown>";
+    if (yesterdayWordData !== null)
+        yesterdayWord = yesterdayWordData.word;
 
     let $tbl = document.createElement("table");
     $tbl.id = "nyt-wordle-show-previous-word";
-    $tbl.innerHTML = `<tr style="border: 2px dotted grey"><th>Yesterday's Word (${yesterdayWordData.date})</th></tr><tr style="border: 2px dotted grey"><td id="_yesterdayWord"></td></tr>`;
-    $word = $tbl.querySelector("#_yesterdayWord");
+    $tbl.innerHTML = `<tr style="border: 2px dotted grey"><th>Yesterday's Word (<a id="_wordlelisturl"><span id="_yesterdaydate"></span></a>)</th></tr><tr style="border: 2px dotted grey"><td id="_yesterdayWord"></td></tr>`;
+    let $word = $tbl.querySelector("#_yesterdayWord");
     $word.innerText = yesterdayWord;
+    let $atag = $tbl.querySelector("#_wordlelisturl");
+    $atag.href = previousWordsUrl;
+    let $yesterday = $tbl.querySelector("#_yesterdaydate");
+    $yesterday.innerText = yesterday;
 
     document.body.insertAdjacentElement("beforeend", $tbl);
 }
