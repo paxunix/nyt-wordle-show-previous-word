@@ -2,7 +2,7 @@
 // @name        Wordle - show yesterday's word
 // @description Shows yesterday's word on the current wordle puzzle so it's easier to play ultra-hard mode.
 // @match       https://www.nytimes.com/games/wordle/*
-// @version     3
+// @version     4
 // @downloadURL https://raw.githubusercontent.com/paxunix/nyt-wordle-show-previous-word/main/nyt-wordle-show-previous-word.user.js
 // @updateURL   https://raw.githubusercontent.com/paxunix/nyt-wordle-show-previous-word/main/nyt-wordle-show-previous-word.user.js
 // @author      paxunix@gmail.com
@@ -10,6 +10,7 @@
 // @grant       GM.setValue
 // @grant       GM.getValue
 // @grant       GM.addStyle
+// @require     https://cdn.jsdelivr.net/gh/paxunix/WaitForElements@v20231207.1/WaitForElements.min.js
 // ==/UserScript==
 
 /* jshint esversion:11 */
@@ -156,7 +157,10 @@ table#nyt-wordle-show-previous-word td, table#nyt-wordle-show-previous-word th {
     let $yesterday = $tbl.querySelector("#_yesterdaydate");
     $yesterday.innerText = yesterday;
 
-    document.body.insertAdjacentElement("beforeend", $tbl);
+    let waiter = new WaitForElements({ selectors: ["div[data-testid=game-wrapper]" ] });
+    let $els = await waiter.match();
+
+    $els[0].insertAdjacentElement("beforeend", $tbl);
 }
 
 main();
