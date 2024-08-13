@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Wordle - show yesterday's word
-// @description Shows yesterday's word on the current wordle puzzle so it's easier to play ultra-hard mode.
+// @name        Wordle - show previous puzzle's word
+// @description Shows previous puzzle's word on the current wordle puzzle so it's easier to play ultra-hard mode.
 // @match       https://www.nytimes.com/games/wordle/*
-// @version     4
+// @version     5
 // @downloadURL https://raw.githubusercontent.com/paxunix/nyt-wordle-show-previous-word/main/nyt-wordle-show-previous-word.user.js
 // @updateURL   https://raw.githubusercontent.com/paxunix/nyt-wordle-show-previous-word/main/nyt-wordle-show-previous-word.user.js
 // @author      paxunix@gmail.com
@@ -10,13 +10,22 @@
 // @grant       GM.setValue
 // @grant       GM.getValue
 // @grant       GM.addStyle
-// @require     https://cdn.jsdelivr.net/gh/paxunix/WaitForElements@v20231207.1/WaitForElements.min.js
+// @require     https://cdn.jsdelivr.net/gh/paxunix/WaitForElements/WaitForElements.min.js
 // ==/UserScript==
 
 /* jshint esversion:11 */
 /* globals GM */
 
 const previousWordsUrl = "https://wordfinder.yourdictionary.com/wordle/answers/";
+
+// Can now do previous wordles, so detect if a date is present as the last part of the URL pathname.
+// If not, use today's date.
+const curPuzzleDate = ((window.location.pathname.split("/").pop().match(/^(\d\d\d\d-\d\d-\d\d)$/) ?? []))[1] ??
+    localISODate(new Date());
+
+// Must append time otherwise the date is off, likely due to timezone difference between local and UTC
+const prevPuzzleDate = localISODate(new Date(((new Date(`${curPuzzleDate}T00:00:00`)).getTime() - 86400000)));
+
 
 function fetcher(opts)
 {
@@ -62,16 +71,12 @@ async function getPreviousWordleWords()
 {
     "use strict";
 
-    let now = new Date();
-
-    // Read from cached words.  If we have yesterday's word, use it,
+    // Read from cached words.  If we have the previous word, use it,
     // otherwise update cache.
     let data = (await GM.getValue("previousWordleWords")) ?? null;
     if (data !== null)
     {
-        let yesterday = localISODate(new Date((new Date()).getTime() - 86400000));
-
-        if (data.words[0].date === yesterday)
+        if (data.words[0].date === prevPuzzleDate)
             return data.words;
     }
 
@@ -139,23 +144,22 @@ table#nyt-wordle-show-previous-word td, table#nyt-wordle-show-previous-word th {
 
 `);
 
-    let yesterday = localISODate(new Date((new Date()).getTime() - 86400000));
     let allWords = await getPreviousWordleWords();
-    let yesterdayWordData = allWords.filter(wd => wd.date === yesterday)[0] ?? null;
-    let yesterdayWord = "<unknown>";
+    let prevWordData = allWords.filter(wd => wd.date === prevPuzzleDate)[0] ?? null;
+    let prevWord = "<unknown>";
 
-    if (yesterdayWordData !== null)
-        yesterdayWord = yesterdayWordData.word;
+    if (prevWordData !== null)
+        prevWord = prevWordData.word;
 
     let $tbl = document.createElement("table");
     $tbl.id = "nyt-wordle-show-previous-word";
-    $tbl.innerHTML = `<tr style="border: 2px dotted grey"><th>Yesterday's Word (<a id="_wordlelisturl"><span id="_yesterdaydate"></span></a>)</th></tr><tr style="border: 2px dotted grey"><td id="_yesterdayWord"></td></tr>`;
-    let $word = $tbl.querySelector("#_yesterdayWord");
-    $word.innerText = yesterdayWord;
+    $tbl.innerHTML = `<tr style="border: 2px dotted grey"><th>Previous Word (<a id="_wordlelisturl"><span id="_prevdate"></span></a>)</th></tr><tr style="border: 2px dotted grey"><td id="_prevWord"></td></tr>`;
+    let $word = $tbl.querySelector("#_prevWord");
+    $word.innerText = prevWord;
     let $atag = $tbl.querySelector("#_wordlelisturl");
     $atag.href = previousWordsUrl;
-    let $yesterday = $tbl.querySelector("#_yesterdaydate");
-    $yesterday.innerText = yesterday;
+    let $prevDate = $tbl.querySelector("#_prevdate");
+    $prevDate.innerText = prevPuzzleDate;
 
     let waiter = new WaitForElements({ selectors: ["div[data-testid=game-wrapper]" ] });
     let $els = await waiter.match();
