@@ -2,7 +2,7 @@
 // @name        Wordle - show previous puzzle's word
 // @description Shows previous puzzle's word on the current wordle puzzle so it's easier to play ultra-hard mode.
 // @match       https://www.nytimes.com/games/wordle/*
-// @version     5
+// @version     6
 // @downloadURL https://raw.githubusercontent.com/paxunix/nyt-wordle-show-previous-word/main/nyt-wordle-show-previous-word.user.js
 // @updateURL   https://raw.githubusercontent.com/paxunix/nyt-wordle-show-previous-word/main/nyt-wordle-show-previous-word.user.js
 // @author      paxunix@gmail.com
@@ -153,7 +153,7 @@ table#nyt-wordle-show-previous-word td, table#nyt-wordle-show-previous-word th {
 
     let $tbl = document.createElement("table");
     $tbl.id = "nyt-wordle-show-previous-word";
-    $tbl.innerHTML = `<tr style="border: 2px dotted grey"><th>Previous Word (<a id="_wordlelisturl"><span id="_prevdate"></span></a>)</th></tr><tr style="border: 2px dotted grey"><td id="_prevWord"></td></tr>`;
+    $tbl.innerHTML = `<tr style="border: 2px dotted grey"><th>Previous Word (<a id="_wordlelisturl" style="color: blue; text-decoration: blue underline !important;"><span id="_prevdate"></span></a>)</th></tr><tr style="border: 2px dotted grey"><td id="_prevWord"></td></tr>`;
     let $word = $tbl.querySelector("#_prevWord");
     $word.innerText = prevWord;
     let $atag = $tbl.querySelector("#_wordlelisturl");
