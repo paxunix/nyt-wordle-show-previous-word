@@ -2,7 +2,7 @@
 // @name        Wordle - show previous puzzle's word
 // @description Shows previous puzzle's word on the current wordle puzzle so it's easier to play ultra-hard mode.
 // @match       https://www.nytimes.com/games/wordle/*
-// @version     6
+// @version     7
 // @downloadURL https://raw.githubusercontent.com/paxunix/nyt-wordle-show-previous-word/main/nyt-wordle-show-previous-word.user.js
 // @updateURL   https://raw.githubusercontent.com/paxunix/nyt-wordle-show-previous-word/main/nyt-wordle-show-previous-word.user.js
 // @author      paxunix@gmail.com
@@ -23,8 +23,12 @@ const previousWordsUrl = "https://wordfinder.yourdictionary.com/wordle/answers/"
 const curPuzzleDate = ((window.location.pathname.split("/").pop().match(/^(\d\d\d\d-\d\d-\d\d)$/) ?? []))[1] ??
     localISODate(new Date());
 
-// Must append time otherwise the date is off, likely due to timezone difference between local and UTC
-const prevPuzzleDate = localISODate(new Date(((new Date(`${curPuzzleDate}T00:00:00`)).getTime() - 86400000)));
+let [year, month, day] = curPuzzleDate.split("-");
+let curDateObj = new Date(year, month - 1, day);
+let yesterdayDateObj = new Date(curDateObj.getTime());
+yesterdayDateObj.setDate(yesterdayDateObj.getDate() - 1);
+
+const prevPuzzleDate = localISODate(yesterdayDateObj);
 
 
 function fetcher(opts)
